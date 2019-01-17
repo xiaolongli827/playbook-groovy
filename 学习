@@ -14,7 +14,7 @@ admin  Long300014  虚拟机kvm 102上的jenkins
 10.33.0.15
 10.33.0.117
 10.33.0.53
-
+123
 
 
 #!/usr/bin/evn python
