@@ -1,0 +1,17 @@
+---
+- name: intall  restarthttpd
+  yum: name={{ web }} state=present
+
+- name: config restarthttpd
+  copy: src={{ item.src }} dest={{ item.dest }}
+        owner=apache group=apache mode=644
+  notify:
+  - restart httpd
+  with_items:
+  - src: httpd.conf
+    dest: /etc/httpd/conf/httpd.conf
+  - src: index.php
+    dest: /var/www/html/index.php
+
+- name: start httpd
+  service: name=httpd state=started

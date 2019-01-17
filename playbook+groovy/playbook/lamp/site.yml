@@ -1,0 +1,7 @@
+---
+- hosts: lamp
+  gather_facts: True
+  roles:
+    - mysql
+    - php
+    - apache

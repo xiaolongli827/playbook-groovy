@@ -1,0 +1,101 @@
+1.yaml格式
+---
+- hosts: nginx      //针对主机
+  vars:               //设置变量
+  。。。
+  remote_user: root //以什么身份运行
+   。。。
+  tasks：              //要执行的操作
+    - name: xxx            //必须起一个名字
+      cron: name="playbook" special_time="reboot" job="w"        //调用的模块名字cron
+
+2.通过item进行简单循环
+[root@long101 ~]# vim add_some_user.yml
+---
+- hosts: nginx
+  tasks:
+    - name: add some users
+      user: name={{ item }} state=present
+      with_items:
+        - testuser1
+        - testuser2
+
+3.判断 通过when实现
+[root@long101 ~]# ansible-playbook pd.yml
+---
+- hosts: nginx
+  tasks:
+    - name: run a shell command
+      shell: echo 111 > /tmp/test.txt
+      when: ansible_hostname == "long102"
+
+4.tags（标签）
+tags用于让用户选择运行playbook中的某个或某些任务。虽然ansible具有幂等性，会跳过没有变化的部分，但是，有些代码为测试其确实没有发生变化，也会耗费很长时间。我们将playbook中的指定任务打上标签，在运行playbook时指定标签名称，这样就不用运行全部代码了。
+playbook中可定义多个标签，且可重名。
+示例：
+        - name: configration file
+         copy: src=/root/httpd.conf dest=/etc/httpd/conf/httpd.conf
+         notify: restart httpd
+         tags: conf
+运行指定标签的任务：ansible-playbook httpd.yml -t conf
+
+ansible中可以对play、role、include、task打一个tag(标签)，然后：
+• 当命令ansible-playbook有-t参数时，只会执行-t指定的tag
+• 当命令ansible-playbook有--skip-tags参数时，则除了--skip-tags指定的tag外，执行其他所有
+
+
+5.检查
+剧本编写后检查方法
+# ansible-playbook --syntax-check 01.yml       --- 进行剧本配置信息语法检查
+
+# ansible-playbook -C 01.yml                    --- 模拟剧本执行(彩排)
+
+6.debug
+调试模块，用于在调试中输出信息
+常用参数：
+msg：调试输出的消息
+var：将某个任务执行的输出作为变量传递给debug模块，debug会直接将其打印输出
+verbosity：debug的级别（默认是0级，全部显示）
+
+7.ignore_errors
+忽略错误，即使出错也不终端 继续向下执行
+
+8.with_dict字典循环
+假设字典如下
+---
+users:
+  alice:
+    name: Alice Appleworth
+    telephone: 123-456-7890
+  bob:
+    name: Bob Bananarama
+    telephone: 987-654-3210
+
+可以访问的变量
+tasks:
+  - name: Print phone records
+    debug: msg="User {{ item.key }} is {{ item.value.name }} ({{ item.value.telephone }})"
+    with_dict: "{{ users }}"
+
+结果分析：
+item.key   是alice和bob
+item.value.name
+item.value.telephone
+
+9.文件循环(with_file, with_fileglob)
+with_file 是将每个文件的文件内容作为item的值
+with_fileglob 是将每个文件的全路径作为item的值, 在文件目录下是非递归的, 如果是在role里面应用改循环, 默认路径是roles/role_name/files_directory
+
+例如:
+- copy: src={{ item }} dest=/etc/fooapp/ owner=root mode=600
+      with_fileglob:
+        - /playbooks/files/fooapp/*
+
+10.pause
+- name: wait 1minutes for ardb backup
+  pause: minutes=1
+
+11.个人疑惑
+Playbook中的 Files和templates
+files和templates均用于ansible文件处理，两者的主要区别是：Files目录下的文件无需写绝对路径即可将文件传输到远程主机，templates目录下文件以Jinja2渲染，支持传送到主机文件的变量替换
+template变量示例可看 https://www.cnblogs.com/FRESHMANS/p/8204721.html，template文件内的变量可在vars目录里直接定义

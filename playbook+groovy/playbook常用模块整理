@@ -1,0 +1,258 @@
+参考网站：
+https://docs.ansible.com/ansible/2.7/modules/list_of_files_modules.html
+http://www.ansible.com.cn/index.html
+https://www.aliyun.com/jiaocheng/433082.html
+
+##########################################################
+安装 可以直接yum安装
+[root@long101 ~]yum install  -y  ansible
+[root@long101 ~]ssh-keygen
+[root@long101 ~]ssh-copy-id  -i /root/.ssh/id_rsa.pub  192.168.122.102
+
+[root@long101 ~]vim /etc/ansible/hosts   定义主机 或者 主机组，这里定义了个主机组
+[nginx]
+long102.lxl.com
+
+[root@long101 ~]# ansible all -i /etc/ansible/hosts -m ping
+all 所有主机
+-i  存放主机 主机组的文件
+-m  modules
+###########################################################
+
+下面进行一些模块介绍
+
+1.command模块    不写默认是command
+# ansible nginx -m command -a 'date'
+long102.lxl.com | SUCCESS | rc=0 >>
+Wed Jan 24 10:40:58 CST 2018
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+2.setup模块  获取主机fact信息(类似于saltstack中自带的grains)
+[root@long101 ~]# ansible nginx -m  setup
+
+过滤
+ansible nginx -m  setup -a "filter=ansible_fqdn"     //过滤信息ansible_fqdn并保存某个文件，保存到server上
+[root@long101 ~]# ansible nginx -m  setup -a"filter=ansible_*_addresses"  --tree /tmp/adreees
+long102.lxl.com | SUCCESS => {
+    "ansible_facts": {
+        "ansible_all_ipv4_addresses": [
+            "192.168.122.102"
+        ],
+        "ansible_all_ipv6_addresses": [
+            "fe80::7af2:5a3b:e5ea:6c71"
+        ]
+    },
+    "changed": false
+}
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+3.file模块
+file模块主要用于远程主机上的文件操作,file模块包含如下选项:
+force:需要在两种情况下强制创建软链接,一种是源文件存在但之后会建立的情况下;另一种是目标软链接已存在,需要先取消之前的软链,然后创建新的软链,有两个选项:yes|no
+group:定义文件/目录的属组
+mode:定义文件/目录的权限
+owner:定义文件/目录的属主
+path:必选项,定义文件/目录的路径
+recurse:递归的设置文件的属性,只对目录有效
+src:要被链接的源文件的路径,只应用于state=link的情况
+dest:被链接到的路径,只应用于state=link的情况
+state:      directory:如果目录不存在,创建目录
+            file:即使文文件不存在,也不会被创建
+            link:创建软链接
+            hard:创建硬链接
+            touch:如果文件不存在,则会创建一个新的文件,如果文件或目录已存在,则更新其最后修改时间
+            absent:删除目录、文件或者取消链接文件
+
+例如：创建文件
+[root@long101 ~]# ansible nginx -m file -a "path=/tmp/filelong group=long mode=644 owner=long state=touch"
+long102.lxl.com | SUCCESS => {
+    "changed": true,
+    "dest": "/tmp/filelong",
+    "gid": 1000,
+    "group": "long",
+    "mode": "0644",
+    "owner": "long",
+    "size": 0,
+    "state": "file",
+    "uid": 1000
+}
+
+创建软链接
+[root@long101 ~]# ansible nginx -m file -a "src=/etc/passwd  dest=/tmp/passwd1 state=link"
+long102.lxl.com | SUCCESS => {
+    "changed": true,
+    "dest": "/tmp/passwd1",
+    "gid": 0,
+    "group": "root",
+    "mode": "0777",
+    "owner": "root",
+    "size": 11,
+    "src": "/etc/passwd",
+    "state": "link",
+    "uid": 0
+}
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+4.user模块和group模块
+user模块是请求的是useradd, userdel, usermod三个指令，goup模块请求的是groupadd, groupdel, groupmod 三个指令
+
+创建用户(append=yes 追加组)
+[root@long101 ~]# ansible nginx -m user -a'name=ansibleuser uid=2000 shell=/bin/bash  groups=ansiblegroup,long  append=yes  state=present'
+long102.lxl.com | SUCCESS => {
+   "append": true,
+   "changed": true,
+   "comment": "",
+   "group": 1003,
+   "groups": "ansiblegroup,long",
+   "home": "/home/ansibleuser",
+   "move_home": false,
+   "name": "ansibleuser",
+   "shell": "/bin/bash",
+   "state": "present",
+   "uid": 2000
+}
+
+彻底删除用户(state=absent删除    remove彻底删除，家目录等信息)
+[root@long101 ~]# ansible  nginx -m user -a 'name=ansibleuser state=absent remove=yes'
+long102.lxl.com | SUCCESS => {
+    "changed": true,
+    "force": false,
+    "name": "ansibleuser",
+    "remove": true,
+    "state": "absent",
+    "stderr": "userdel: group ansibleuser not removed because it is not the primary group of user ansibleuser.\n",
+    "stderr_lines": [
+        "userdel: group ansibleuser not removed because it is not the primary group of user ansibleuser."
+    ]
+}
+
+删除组
+[root@long101 ~]# ansible nginx -m group -a'name=ansibleuser state=absent'
+long102.lxl.com | SUCCESS => {
+    "changed": true,
+    "name": "ansibleuser",
+    "state": "absent"
+}
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+5.copy模块(file的参数可以在copy模块的参数中使用)  从本地cp到远程主机
+copy模块包含如下选项：
+backup：再覆盖之前将原文件备份，备份文件包含时间信息 有两个选项 yes|no
+content：设定源文件的值
+dest：目标路径
+src：源文件或者源目录的路径。如果是目录，路径使用"/"结尾，则只复制目录里的内容，否则，包含目录整个内容全部复制
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+6.fetch 模块   把文件从远程主机拉取本地
+dest：将远程主机拉取过来的文件保存在本地的路径信息
+src：指定从远程主机要拉取的文件信息,只能拉取文件
+ansible nginx -m fetch -a "dest=/tmp/backup src=/etc/hosts"
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+7.cron模块
+管理计划任务
+包含如下选项：
+backup：对远程主机上的原任务计划内容修改之前做备份
+cron_file：如果指定该选项，则用该文件替换程主机上的cron.d目录下的用户的任务计划
+day：日（1-31，*，*/2,……）
+hour：小时（0-23，*，*/2，……）
+minute：分钟（0-59，*，*/2，……）
+month：月（1-12，*，*/2，……）
+weekday：周（0-7，*，……）
+job：要执行的任务，依赖于state=present
+name：该任务的描述
+special_time：指定么时候执行，参数： reboot,yearly,annually,monthly,weekly,daily,hourly
+state：确认该任务计划是创建还是删除
+user：以哪个用户的身份执行
+
+例子：
+# ansible nginx -m cron -a 'name="yum autoupdate" weekday="2" minute=0 hour=12 user="root" job="yum update"'
+
+[root@long101 ~]# ansible nginx -m cron -a'backup="True" name="a" special_time=reboot job="date"'    加一个，如果name一样 backup=True 生效，会备份到一个文件后覆盖,备份文件位置看提示，一般在/tmp下
+[root@long101 ~]# ansible nginx -m cron -a 'name="a"  state=absent'     删除某一个计划任务 注释信息是“a”
+long102.lxl.com | SUCCESS => {
+    "changed": true,
+    "envs": [],
+    "jobs": [
+        "a job for reboot"
+    ]
+}
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+8.yum模块
+使用yum包管理器来管理软件包，其选项有：
+config_file：yum的配置文件
+disable_gpg_check：关闭gpg_check
+disablerepo：不启用某个源
+enablerepo：启⽤用某个源
+name：要进行操作的软件包的名字，也可以传递一个url或者⼀个本地的rpm包的路径
+state：状态（present，absent，latest）
+
+安装：present installed latest  latest是安装最新的或者更新  (ansible2.7发现yum模块中 installed参数不管用了)
+删除：absent removed
+
+# ansible nginx -m yum -a 'name=httpd state=latest'
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+9.synchronize模块
+主要用于目录、文件的同步，主要基于rsync命令工具同步目录和文件。注意安装推送端（server or  client）需要安装rsync。
+compress：开启压缩，默认为开启
+archive：是否采用归档模式同步，保证源文件和目标文件属性一致
+checksum：是否效验
+dirs：以非递归的方式传送目录
+links：同步链接文件
+recursive：是否递归yes/no
+rsync_opts：使用rsync的参数
+copy_links：同步的时候是否复制链接
+delete：删除源中没有但目标存在的文件，使两边内容一样，以推送方为主
+src：源目录及文件
+dest：目标文件及目录
+dest_port：目标接收的端口
+rsync_path：服务的路径，指定rsync在远程服务器上执行
+rsync_remote_user：设置远程用户名
+–exclude=.log：忽略同步以.log结尾的文件，这个可以自定义忽略什么格式的文件，或者.txt等等都可以，但是由于这个是rsync命令的参数，所以必须和rsync_opts一起使用，比如rsync_opts=--exclude=.txt这种模式
+mode：同步的模式，rsync同步的方式push、pull，默认是推送push，从本机推送给远程主机，pull表示从远程主机上拿文件
+
+# ansible nginx -m synchronize -a 'src=/some/relative/path dest=/some/absolute/path'
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+10 mount模块
+fstype：指定挂载文件类型
+opts：设定挂载的参数选项信息 -o ro 相当于 opts=ro
+path：挂载点路径          path=/mnt
+src：要被挂载的目录信息  src=172.16.1.31:/data
+state状态参数
+unmounted ：加载/etc/fstab文件 实现卸载
+absent：在fstab文件中删除挂载配置
+present：在fstab文件中添加挂载配置
+mounted：将挂载信息添加到/etc/fstab文件中，加载配置文件挂载
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+11. get_url模块
+该模块主要用于从http、ftp、https服务器上下载文件（类似于wget），主要有如下选项：
+timeout：下载超时时间，默认10s
+url：下载的URL
+url_password、url_username：主要用于需要用户名密码进行验证的情况
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+12. service模块
+指定服务状态模块管理(必须保证远程主机事先安装好指定服务)
+enabled:是否开机自动启动 true/false
+name:服务名称
+start:状态，取值为startd,stopd,restartd
+
+# ansible nginx -m service -a 'enabled=true name=httpd state=started'
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+13.shell模块
+在远程主机上运行命令，支持管道、变量等在使用复制命令时使用
+# ansible nginx -m shell -a 'echo 123 | passwd -stdin long
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+14.script 模块
+使用scripts模块,不用将脚本传输到远程节点,脚本本身不用进行授权,即可利用script模块执行。直接执行脚本即可,不需要使用sh
+
+# ansible nginx -m script -a "/tmp/test.sh"
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+以上列出比较普遍的模块
+
+ansible软件中查看模块相关信息方法
+[aliyunzixun@xxx.com ~]# ansible-doc -l列出所有模块信息
+[aliyunzixun@xxx.com ~]# ansible-doc -s cron 参看指定模块的帮助

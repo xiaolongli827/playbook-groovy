@@ -1,0 +1,64 @@
+root   Long300014  虚拟机kvm 102上的gitlab
+admin  Long300014  虚拟机kvm 102上的jenkins
+
+
+
+10.33.0.93
+
+10.33.0.55
+10.33.0.243
+10.33.0.97
+10.33.0.16
+10.33.0.240
+10.33.0.100
+10.33.0.15
+10.33.0.117
+10.33.0.53
+
+
+
+#!/usr/bin/evn python
+# -*- coding: UTF-8 -*-
+import os
+import sys
+
+start_shardid=sys.argv[1]
+end_shardid=sys.argv[2]
+gid=sys.argv[3]
+# start_shardid 1001
+# 1011
+# 300
+
+def touch_modulex(start_shardid,end_shardid,gid):
+    start_shardid=int(start_shardid)
+    end_shardid=int(end_shardid)
+    for shardid in range(start_shardid,end_shardid):
+        fo = open( "%s" %shardid, "w" )
+        fo.write("shardid=%s" %shardid )
+        fo.close()
+
+def touch_shardid(start_shardid,end_shardid,gid):
+    start_shardid=int(start_shardid)
+    end_shardid=int(end_shardid)
+    for shardid in range(start_shardid,end_shardid):
+        port=int(shardid)%100
+        fo = open( "%s" %shardid, "w" )
+        fo.write("shardid=%s\n" %shardid )
+        fo.write("merge_rel=%s\n" %shardid )
+        fo.write("redis_db=1\n")
+        fo.write("rank_redis_db=1\n")
+        listen_post_port=int(port)+7000
+        fo.write("listen_post_port=%s\n" %listen_post_port)
+        debug_addr=int(port)+7600
+        fo.write("debug_addr=:%s\n" %debug_addr)
+        fo.close()
+
+
+if __name__ == '__main__':
+
+    pwd=os.getcwd()
+    os.chdir("%s/%s/modulex" %(pwd,gid))
+    touch_modulex(start_shardid,end_shardid,gid)
+
+    os.chdir("%s/%s/shards" %(pwd,gid))
+    touch_shardid(start_shardid,end_shardid,gid)

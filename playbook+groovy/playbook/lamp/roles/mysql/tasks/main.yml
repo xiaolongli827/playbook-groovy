@@ -1,0 +1,23 @@
+---
+- name: install mariadb
+  yum: name={{ item }} state=present
+  with_items:
+    - mariadb
+    - mariadb-server
+
+- name: config mariadb
+  copy: src=my.cnf dest=/etc/my.cnf
+  notify:
+  - restart mysqld
+
+- name: restart mysqld
+  service: name=mariadb  state=restarted
+
+#需要mariadb-python
+- name: creat myql user
+  mysql_user:
+    name: long
+    password: 'Long_300014'
+    priv: '*.*:ALL'
+    state: present
+    host: '%'

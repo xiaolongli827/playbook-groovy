@@ -1,0 +1,19 @@
+#基本拉取
+#加credentials后：注意高亮部分是credentials的ID，自己可以设置，如果没有自己生成。
+job('job_del_test_git_pull'){
+ scm{
+   git {
+     remote {
+     url 'git@192.168.122.102:root/project-1.git'
+     credentials('80c5951e-c5a5-42af-906b-7b0dfd96d918')
+         }
+       }
+    }
+  triggers{
+    scm('H/30 * * * *')
+    }
+  steps {
+      shell(''' echo test ok  ''')
+    }
+
+}
